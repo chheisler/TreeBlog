@@ -43,6 +43,8 @@ var TreeBlog = {
 		}
 	},
 	
+	//currently selected node
+	active_node: null,
 	
 	//initialization function
 	init: function() {
@@ -140,12 +142,8 @@ var TreeBlog = {
 	render: function() {
 		if(!TreeBlog.graph.balanced) window.requestAnimationFrame(TreeBlog.render);
 		
-		//initialize total velocity and quad tree
+		//initialize total velocity
 		var total_velocity = 0;
-		// var quad_tree = new TreeBlog.QuadTree(TreeBlog.graph.width, TreeBlog.graph.height, TreeBlog.config.max_depth);
-		// for(var i = 0; i < TreeBlog.graph.nodes.length; i++) {
-			// quad_tree.insert(new TreeBlog.QuadNode(TreeBlog.graph.nodes[i].x, TreeBlog.graph.nodes[i].y, TreeBlog.graph.nodes[i].mass));
-		// }
 			
 		//for each node calculate forces on it
 		for(var i = 0; i < TreeBlog.graph.nodes.length; i++) {
@@ -186,7 +184,7 @@ var TreeBlog = {
 			TreeBlog.graph.root.velocity.y += TreeBlog.graph.y_center - TreeBlog.graph.root.y;
 		}
 		
-		//move nodes; done directly instead of move method in node object to avoid expense of function call
+		//move nodes
 		for(var i = 0; i < TreeBlog.graph.nodes.length; i++) {
 			var node = TreeBlog.graph.nodes[i];
 			node.x += node.velocity.x;
@@ -260,6 +258,7 @@ var TreeBlog = {
 		this.circle.setAttribute('r',2);
 		this.circle.setAttribute('cx', this.x);
 		this.circle.setAttribute('cy', this.y);	
+		this.circle.onclick = function(){TreeBlog.graph.nodes[+this.id].relatives()};
 		
 		//set parent if any
 		if(parent) {
@@ -277,7 +276,7 @@ var TreeBlog = {
 			this.line.setAttribute('x2', parent.x);
 			this.line.setAttribute('y2', parent.y);
 		} else {
-			this.parent = this; //let's us skip checking for parent when calculating pull since vast majority of nodes do have one; will just calculate distance and pull as 0 for parentless nodes
+			this.parent = this; //can skip check for parent when calculating pull
 		}
 	},
 	
@@ -368,6 +367,24 @@ TreeBlog.Node.prototype = {
 			callback(node);
 			queue = queue.concat(node.children);
 		}
+	},
+	
+	//toggling showing relatives
+	relatives: function() {
+		if(TreeBlog.active_node) TreeBlog.active_node.highlightRelatives('black', 'black');
+		if(this == TreeBlog.active_node) {
+			TreeBlog.active_node = null;
+		} else {
+			this.highlightRelatives(TreeBlog.config.color.descendant, TreeBlog.config.color.ancestor);
+			TreeBlog.active_node = this;
+		}
+	},
+	
+	highlightRelatives: function(descendant_color, ancestor_color) {
+		this.descendants(function(node) {
+			node.circle.setAttribute('stroke', descendant_color);
+			node.line.setAttribute('stroke', descendant_color);
+		});
 	}
 };
 
