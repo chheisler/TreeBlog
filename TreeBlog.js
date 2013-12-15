@@ -1,5 +1,6 @@
 /*
 	TODO:
+		Graphs with orphaned nodes not correctly marking root node; "url_map[TreeBlog.notes[i]] is undefined"
 		Orphaned clusters
 		Better way of keeping things centered; use heaviest node instead of root?
 		Can we get optimization to work? Other optimizations?
@@ -93,8 +94,7 @@ var TreeBlog = {
 				}
 				
 				//save information for note
-				TreeBlog.notes.push({url: url, from: from , type: type});
-				var contents = null;
+				TreeBlog.notes.push({url: url, from: from});
 			}
 		}
 		
@@ -114,24 +114,36 @@ var TreeBlog = {
 		var url_map = {};
 		
 		for(var i = TreeBlog.notes.length - 1; i >= 0; i--) {
+			var node = null;
+			var note = TreeBlog.notes[i];
+			
 			//if url not in map create new node and add to map
-			if(!url_map[TreeBlog.notes[i].url]) {
-				var node = new TreeBlog.Node(TreeBlog.notes[i].url, url_map[TreeBlog.notes[i].from]);
-				url_map[TreeBlog.notes[i].url] = node;
-			
-			//else if note has different parent than node in map just create new node
-			} else if(url_map[TreeBlog.notes[i]].parent.url != TreeBlog.notes[i].from) {
-				var node = new TreeBlog.node(TreeBlog.notes[i].url, url_map[TreeBlog.notes[i].from]);
+			if(!url_map[note.url]) {
+				//find parent and create if necessary
+				if(!url_map[note.from]) {
+					//set parent to null if root
+					if(!note.from) {
+						var parent = null;
+					} else {
+						var parent = new TreeBlog.Node(note.from, null);
+						url_map[note.from] = parent;
+						TreeBlog.graph.insert(parent);
+					}
+				} else {
+					var parent = url_map[note.from];
+				}
+				node = new TreeBlog.Node(note.url, parent);
+				url_map[note.url] = node;
 			}
-			
+
 			//insert node if we made one
-			if(typeof node !== 'undefined') {
+			if(node) {
 				TreeBlog.graph.insert(node);
 			}
 		}
 		
 		//set root node
-		if(TreeBlog.notes[TreeBlog.notes.length - 1].type == ' posted this') {
+		if(!TreeBlog.notes[TreeBlog.notes.length - 1].from) {
 			TreeBlog.graph.root = TreeBlog.graph.nodes[0];
 			TreeBlog.graph.root.circle.setAttribute('fill', TreeBlog.config.color.root);
 		}
@@ -353,10 +365,11 @@ TreeBlog.Node.prototype = {
 	//iterate through all ancestors
 	ancestors: function(callback) {
 		var node = this.parent;
-		while(node) {
+		while(node != node.parent) {
 			callback(node);
 			node = node.parent;
 		}
+		if(node != this) callback(node);
 	},
 	
 	//iterate through all descendants
@@ -371,19 +384,27 @@ TreeBlog.Node.prototype = {
 	
 	//toggling showing relatives
 	relatives: function() {
-		if(TreeBlog.active_node) TreeBlog.active_node.highlightRelatives('black', 'black');
+		if(TreeBlog.active_node) TreeBlog.active_node.highlightRelatives('black', 'black', 'black');
 		if(this == TreeBlog.active_node) {
 			TreeBlog.active_node = null;
 		} else {
-			this.highlightRelatives(TreeBlog.config.color.descendant, TreeBlog.config.color.ancestor);
+			this.highlightRelatives(TreeBlog.config.color.highlight, TreeBlog.config.color.descendant, TreeBlog.config.color.ancestor);
 			TreeBlog.active_node = this;
 		}
 	},
 	
-	highlightRelatives: function(descendant_color, ancestor_color) {
+	highlightRelatives: function(highlight_color, descendant_color, ancestor_color) {
+		this.circle.setAttribute('stroke', highlight_color);
+		
 		this.descendants(function(node) {
 			node.circle.setAttribute('stroke', descendant_color);
 			node.line.setAttribute('stroke', descendant_color);
+		});
+		
+		if(this.line) this.line.setAttribute('stroke', ancestor_color);
+		this.ancestors(function(node) {
+			node.circle.setAttribute('stroke', ancestor_color);
+			if(node.line) node.line.setAttribute('stroke', ancestor_color);
 		});
 	}
 };
