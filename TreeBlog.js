@@ -9,15 +9,12 @@
 		Will truncating really improve performance?
 		Tweaking push and pull to keep nodes from being inside parent/adjust how mass is set relative to radius so it always pushes things outside of it? this will require ACTUAL MATH adjust radius to log of children count?
 		Scale down nodes to fit more? Zooming?
-		Showing parents and ancestors, information on node
+		Showing information on node
 		Click and drag?
 		Scaling of line thickness, border thickness
 		Adjust scaling of circles, keep largest around 32px(?), make logarithmic?
 		Historical playback of reblogs in order they were made?
 		Better initial placement of nodes
-		Remove insertion on parsing notes, make separate
-			will effect inserting lines and circles as well
-			May want to store reblogs in list?
 */
 
 //wrap variables and functions in object to namespace it
@@ -127,7 +124,7 @@ var TreeBlog = {
 					} else {
 						var parent = new TreeBlog.Node(note.from, null);
 						url_map[note.from] = parent;
-						TreeBlog.graph.insert(parent);
+						TreeBlog.graph.nodes.push(parent);
 					}
 				} else {
 					var parent = url_map[note.from];
@@ -138,7 +135,7 @@ var TreeBlog = {
 
 			//insert node if we made one
 			if(node) {
-				TreeBlog.graph.insert(node);
+				TreeBlog.graph.nodes.push(node);
 			}
 		}
 		
@@ -313,19 +310,12 @@ var TreeBlog = {
 	
 //prototype for Graph object
 TreeBlog.Graph.prototype = {
-	insert: function(node) {
-		this.nodes.push(node);
-		this.svg.appendChild(node.circle);
-				
-		//check whether to insert node's circle or parent's circle
-		if(node.line) {
-			if(+node.circle.id < +node.parent.circle.id) {
-				TreeBlog.graph.svg.insertBefore(node.line, node.circle);
-			} else {
-				TreeBlog.graph.svg.insertBefore(node.line, node.parent.circle);
-			}
+	draw: function() {
+		for(var i = 0; i < TreeBlog.graph.nodes.length; i++) {
+			var node = TreeBlog.graph.nodes[i];
+			this.svg.appendChild(node.circle);
+			if(node.line) this.svg.insertBefore(node.line, node.parent.circle);
 		}
-		if(this.balanced) this.balance();
 	},
 	
 	balance: function() {
